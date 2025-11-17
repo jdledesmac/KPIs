@@ -180,26 +180,27 @@ class Window(QMainWindow):
                 if not row:
                     index +=1
                     continue
-                if row[0]=='RTWP LTE':
+                if row[0]=='RTWP (dBm)':
                     offset_l=index
-                if row[0]=='RTWP WCDMA':
+                if row[0]=='RSSI (dBm)':
                     offset_w=index
                 index +=1
         rows_lte=offset_w-offset_l-3
-        df4 = pd.read_csv(self.filename, header=1,  skiprows=offset_l, nrows=rows_lte, index_col=[2,1])
+        df4 = pd.read_csv(self.filename, header=offset_l,  nrows=rows_lte, index_col=[2,1])
+        #df4 = pd.read_csv(self.filename, header=1,  skiprows=offset_l, nrows=rows_lte, index_col=[2,1]) #original V5
         #df4 = pd.read_csv(self.filename, header=1,  skiprows=offset_l, nrows=rows_lte, index_col=[2,1], keep_default_na=False, na_values="")
         #df4 = df4.dropna()
         
-        def renameindex(in1):
-            new_index=[]
+        # def renameindex(in1):
+        #     new_index=[]
             
-            for item in in1:
-                a=item.split("(")
-                a=a[1].split(")")
-                new_index.append(a[0])
-            return new_index
+        #     for item in in1:
+        #         a=item.split("(")
+        #         a=a[1].split(")")
+        #         new_index.append(a[0])
+        #     return new_index
 
-        df4.index = df4.index.set_levels(renameindex(df4.index.levels[0]), level=0)
+        # df4.index = df4.index.set_levels(renameindex(df4.index.levels[0]), level=0)
         
         df4['Site']=df4.index.get_level_values(0).str[:-3]
         
@@ -358,9 +359,9 @@ class Window(QMainWindow):
         sectors_850=['_1', '_2', '_3', '_4', '_X', '_Y', '_Z', '_U','_V', '_W', 'Y1',
                     'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'X1', 'X2','X3','X4','X5','X6', 'S1', 'S2','S3', 'S4', 'S5', 'S6']
         sectors_1900=['_I', '_J', '_K', '_L', '_M', '_N','_O', '_P', '_Q','_R','_S',
-                    '_T','M1','M2', 'M3', 'M4', 'M5', 'M6', '_A', '_B', '_C', '_D', '_E']
-        sectors_700=['R1','R2','R3', 'R4', 'R5', 'R6']
-        sectors_2600=['L1','L2','L3','L4','L5','L6','T1','T2','T3','T4', 'T5', 'T6']
+                    '_T','M1','M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', '_A', '_B', '_C', '_D', '_E']
+        sectors_700=['R1','R2','R3', 'R4', 'R5', 'R6', 'R7', 'R8', 'R9']
+        sectors_2600=['L1','L2','L3','L4','L5','L6','T1','T2','T3','T4', 'T5', 'T6',  'T7', 'T8', 'T9', 'L7', 'L8', 'L9']
         if sector in sectors_850:
             return '850'
         elif sector in sectors_1900:
