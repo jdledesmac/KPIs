@@ -13,6 +13,7 @@ from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog, QActionGroup
 import os
 import re
 
+
 matplotlib.use('Qt5Agg')
 
 
@@ -20,17 +21,12 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
     '''Class for initializing Matplotlib canvas on Pytq interface'''
     def __init__(self, parent=None, dpi=120, mode="General"):
         self.fig = Figure(dpi = dpi)
-        
+        #depending on mode create one or two subplots
         if mode=="LTE RTWP"or mode=='Dual':
             self.axes= self.fig.add_subplot(211)
             self.axes2= self.fig.add_subplot(212, sharex=self.axes)
-            #self.axes2= self.fig.add_subplot(212)
-        # if mode=='Dual':
-        #     self.axes= self.fig.add_subplot(211)
-        #     self.axes2= self.fig.add_subplot(212, sharex=self.axes)
         else:
             self.axes= self.fig.add_subplot(111)
-            #self.axes2=self.axes.twinx()
         self.fig.set_tight_layout(True)
         self.fig.autofmt_xdate()
         super(MatplotlibCanvas, self).__init__(self.fig)
@@ -40,18 +36,16 @@ class Window(QMainWindow):
     '''Window is the main class to show de window aplication and all its components'''
     def __init__(self):
         super().__init__()
-        uic.loadUi("kpi_viewer5.ui", self)
-        
-        self.kpis_info_csv= self.resource_path('KPIS_data.csv')
-        #print(self.kpis_info_csv)
-        self.initial_vars()
-        self.canv = MatplotlibCanvas(self, mode="General")
+        uic.loadUi("kpi_viewer5.ui", self) #loads UI from file
+        self.kpis_info_csv= self.resource_path('KPIS_data.csv') #Path to KPI information CSV
+        self.initial_vars() #Initialize all variables
+        self.canv = MatplotlibCanvas(self, mode="General") #Create Matplotlib canvas
         try:
-            #self.kpi_info=pd.read_csv(f"{pathname}{filename}", sep=';', index_col='KPI Alias')
-            self.kpi_info=pd.read_csv(self.kpis_info_csv, sep=';', index_col='KPI Alias')
+            self.kpi_info=pd.read_csv(self.kpis_info_csv, sep=';', index_col='KPI Alias') #Load KPI information from CSV
         except Exception as e:
             print(e)
             self.textBrowser.append('Error, missing file KPI_INFO.csv')
+        # Set up all signals and slots    
         self.radio_850.setEnabled(False)
         self.radio_850.toggled.connect(self.filter_band)
         self.radio_1900.setEnabled(False)
@@ -75,18 +69,16 @@ class Window(QMainWindow):
         self.comboBox.currentIndexChanged['QString'].connect(self.prepare_canvas)
         self.list_eb.itemClicked.connect(self.get_list_item)
         self.list_plots.currentItemChanged.connect(self.kpi_select)
-        self.btn_load.clicked.connect(self.get_file)
+        self.btn_load.clicked.connect(self.get_file_path)
         self.btn_plot.clicked.connect(self.clicked_plot_button)
         self.btn_clear.clicked.connect(self.clicked_clear_button)
-        # self.btn_next_kpi.clicked.connect(self.next_kpi)
-        # self.btn_last_kpi.clicked.connect(self.back_kpi)
         self.checkBox.toggled.connect(self.build_table)
         self.checkBox_2.toggled.connect(self.update_plots_list)
         self.checkBox_2.setEnabled(False)
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout_2.addWidget(self.toolbar)
         self.actionSalir.triggered.connect(self.close)
-        self.actionAbrir.triggered.connect(self.get_file)
+        self.actionAbrir.triggered.connect(self.get_file_path)
         self.action_group = QActionGroup(self)
         self.action_group.addAction(self.actionGeneral)
         self.action_group.addAction(self.actionLTE_Rtwp)
@@ -97,7 +89,9 @@ class Window(QMainWindow):
         self.actionUMTS_Prach.triggered.connect(self.set_mode)
         self.actionDual.triggered.connect(self.set_mode)
 
+    #FUNCTIONS
     def initial_vars(self):
+        '''Initialize all variables used in the program'''
         self.is_updating=True
         self.files=[]
         self.nodeb=''  
@@ -125,24 +119,17 @@ class Window(QMainWindow):
 
 
     def resource_path(self, relative_path):
-    #Get absolute path to resource, works for dev and for PyInstaller
+        '''Get absolute path to resource for creating executable with PyInstaller'''
         try:
         # PyInstaller creates a temp folder and stores path in _MEIPASS
             base_path = sys._MEIPASS
-            
         except Exception:
             base_path = os.path.abspath(".")
-          
         return os.path.join(base_path, relative_path)
 
 
-    # def keyPressEvent(self, event):
-    #     if event.key() == Qt.Key_Right:
-    #         self.next_kpi()
-    #     if event.key() == Qt.Key_Left:
-    #         self.back_kpi()
-
     def set_mode(self):
+        '''Set plotting mode from menu'''
         self.mode=self.sender().text()
 
     def update_plots_list(self):
@@ -154,15 +141,15 @@ class Window(QMainWindow):
             self.list_plots.setCurrentRow(self.kpi_index)
         self.is_updating=False
 
-    def get_file(self):
-        """ This function will get the address of the csv file location"""
+    def get_file_path(self):
+        '''function to get the path of xlsx/csv files and call the respective reading function'''
         try:
             self.filename = QFileDialog.getOpenFileName(filter = "xlsx/csv (*.xlsx *.csv)")[0]
             if self.filename not in self.files:
                 self.files.append(self.filename)
                 extension=self.filename[-4:]
                 if extension=='xlsx':
-                    self.read_data()
+                    self.read_xlsx_data()
                 elif extension=='.csv':
                     self.read_csv_data()
             else:
@@ -171,6 +158,9 @@ class Window(QMainWindow):
             self.textBrowser.append("No file loaded")
 
     def read_csv_data(self):
+        '''Function to read csv data files containing RTWP data, 
+            the logic to manage exceptions for non expected data formating haven't been implemented
+            therefore, I expect a proper file by now'''
         offset_l=0
         offset_w=0
         with open(self.filename,'rt')as f:
@@ -187,32 +177,15 @@ class Window(QMainWindow):
                 index +=1
         rows_lte=offset_w-offset_l-3
         df4 = pd.read_csv(self.filename, header=offset_l,  nrows=rows_lte, index_col=[2,1])
-        #df4 = pd.read_csv(self.filename, header=1,  skiprows=offset_l, nrows=rows_lte, index_col=[2,1]) #original V5
-        #df4 = pd.read_csv(self.filename, header=1,  skiprows=offset_l, nrows=rows_lte, index_col=[2,1], keep_default_na=False, na_values="")
-        #df4 = df4.dropna()
-        
-        # def renameindex(in1):
-        #     new_index=[]
-            
-        #     for item in in1:
-        #         a=item.split("(")
-        #         a=a[1].split(")")
-        #         new_index.append(a[0])
-        #     return new_index
-
-        # df4.index = df4.index.set_levels(renameindex(df4.index.levels[0]), level=0)
-        
         df4['Site']=df4.index.get_level_values(0).str[:-3]
-        
         self.df_antl.append(df4)
         sites = df4['Site'].unique().tolist()
         self.update_list(sites, tec=' ANTL')
         self.textBrowser.append(f'Antenna Line monitoring csv file readed for site:{sites[0]}')
-        #self.current_sel=df4
-        #self.build_table()
+    
 
     def clicked_clear_button(self):
-        
+        '''Clear all data and variables'''
         self.initial_vars()
         self.radio_all.setEnabled(False)
         self.radio_850.setEnabled(False)
@@ -247,6 +220,7 @@ class Window(QMainWindow):
 
 
     def clicked_plot_button(self):
+        
         self.clear_data()
         if self.tec_name=='ANTL':
             self.actionGeneral.setChecked(True)
@@ -291,8 +265,8 @@ class Window(QMainWindow):
         self.prepare_canvas()
 
 
-    def read_data(self):
-        """ This function will read the data using pandas"""
+    def read_xlsx_data(self):
+        """ This function will read the xlsx data using pandas"""
         try:
             excel_data = pd.read_excel(self.filename, index_col=0)
             excel_data = excel_data.drop(excel_data.index[0])
@@ -354,7 +328,7 @@ class Window(QMainWindow):
 
 
     def generate_band(self, cell):
-        'function to generate new column with the band depending on the sector input'
+        '''function to generate new column with the band depending on the sector input'''
         sector = cell[-2:]
         sectors_850=['_1', '_2', '_3', '_4', '_X', '_Y', '_Z', '_U','_V', '_W', 'Y1',
                     'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'X1', 'X2','X3','X4','X5','X6', 'S1', 'S2','S3', 'S4', 'S5', 'S6']
@@ -407,8 +381,6 @@ class Window(QMainWindow):
             self.actionUMTS_Prach.setEnabled(True)
             self.actionDual.setEnabled(True)
             
-        
-
     def prepare_data(self):
         '''Prepare data to plot'''
         data_bands=[]
@@ -423,12 +395,7 @@ class Window(QMainWindow):
             self.textBrowser.append("Please select a base station to plot")
             return
         data = data.drop_duplicates()
-        # empty_cols = [col for col in data.columns if data[col].isnull().all()]
-        # if empty_cols:
-        #     self.textBrowser.append(f'Deleting empty columns found, {empty_cols}')
-        #     data.dropna(axis=1, how='all', inplace=True)
         data=data[data[self.tec_name].eq(self.nodeb)]
-        #data.dropna(axis=1, how='all', inplace=True)
         sectors= data[self.cell_name].unique().tolist()
 
         if self.mode=='Dual':
@@ -522,27 +489,6 @@ class Window(QMainWindow):
             plots_list.append(kpi)
         return plots_list
 
-    # def next_kpi(self):
-    #     '''Next button for changing plot'''
-    #     if self.checkBox_2.isChecked():
-    #         if self.kpi2_index < (len(self.kpi_all) -1):
-    #             self.kpi2_index += 1
-    #             self.prepare_plot()
-    #     else:
-    #         if self.kpi_index < (len(self.kpi_all) -1):
-    #             self.kpi_index += 1
-    #             self.prepare_plot()
-
-    # def back_kpi(self):
-    #     '''Back button for changing plot'''
-    #     if self.checkBox_2.isChecked():
-    #         if self.kpi2_index>0:
-    #             self.kpi2_index -= 1
-    #             self.prepare_plot()
-    #     else:
-    #         if self.kpi_index>0:
-    #             self.kpi_index -= 1
-    #             self.prepare_plot()
     
     def kpi_select(self):
         '''Function for changing Plot from combo Box'''
@@ -593,6 +539,7 @@ class Window(QMainWindow):
         self.build_table()
 
     def build_table(self):
+        '''Build table view from current selected data'''
         if self.checkBox.isChecked():
             model=TableModelWidget.TableModel(self.current_sel)
             self.tableView.setModel(model)
@@ -603,6 +550,7 @@ class Window(QMainWindow):
             self.tableView.setModel(None)
 
     def prepare_canvas(self):
+        '''Prepare Matplotlib canvas before plotting'''
         if self.is_updating:
             return
         if self.checkBox_2.isChecked():
@@ -789,6 +737,7 @@ class Window(QMainWindow):
         axs.legend(bbox_to_anchor=(1.05 , 0.5), loc='center left', fancybox=True, shadow=True, frameon=True)
         axs2.tick_params(axis='x', labelrotation = 90, labelsize=6)
         axs2.locator_params(axis='x', nbins=50)
+        #Create annotations
         c2=mplcursors.cursor((img1,img2))
         @c2.connect("add")
         def _(sel2):
